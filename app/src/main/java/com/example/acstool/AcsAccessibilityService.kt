@@ -36,7 +36,7 @@ class AcsAccessibilityService : AccessibilityService() {
 
     // 当系统发送无障碍事件时调用，这是处理自动化逻辑的入口 [citation:7]
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        Log.d(TAG, "📢 收到事件: ${event.eventType}, 包名: ${event.packageName}")
+        Log.d(TAG, "📢 收到事件了: ${event.eventType}, 包名: ${event.packageName}")
 
         // 在这里，你可以解析 event 的源节点，获取屏幕上的文本或执行操作
         val sourceNode = event.source
