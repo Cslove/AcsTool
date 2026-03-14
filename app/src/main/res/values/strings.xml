@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AcsTool</string>
+    <string name="service_name">我的自动化工具</string>
+    <string name="service_description">这是一个用于学习和测试的无障碍服务Demo，可以读取屏幕内容。</string>
+</resources>
