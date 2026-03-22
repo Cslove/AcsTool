@@ -28,12 +28,6 @@ org.gradle.jvmargs=-Xmx512m
 ├─ 内存使用:400MB
 └─ ✅ 构建成功
 
-中型项目 (10-20 个模块):
-├─ 编译 Kotlin + 处理资源
-├─ 内存使用:600MB
-├─ ❌ Java heap space OutOfMemoryError
-└─ ❌ 构建失败
-
 大型项目 (> 50 个模块):
 ├─ 编译 Kotlin + 处理资源 + 打包
 ├─ 内存使用:512MB
@@ -77,55 +71,6 @@ org.gradle.jvmargs=-Xmx2048m -Xms512m -XX:MaxMetaspaceSize=512m -Dfile.encoding=
 | `-Xms512m` | 初始堆内存 | 512m-1024m | 减少动态扩容 |
 | `-XX:MaxMetaspaceSize` | 最大元空间 | 512m-1024m | 存储类元数据 |
 | `-Dfile.encoding` | 文件编码 | UTF-8 | 避免中文乱码 |
-
----
-
-#### 场景：内存不足排查
-
-**现象**:
-```
-> Task :app:compileDebugKotlin FAILED
-Execution failed for task ':app:compileDebugKotlin'.
-> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunner
-   > Internal compiler error. See log for more details
-     Caused by: java.lang.OutOfMemoryError: Java heap space
-```
-
-**排查步骤**:
-
-```bash
-# 1. 查看当前配置
-cat gradle.properties
-
-# 2. 监控内存使用
-./gradlew build --profile
-
-# 3. 生成 Heap Dump(如果 OOM)
-org.gradle.jvmargs=-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError
-
-# 4. 调整参数
-org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m
-```
-
-**调优流程**:
-```
-初始配置:
-org.gradle.jvmargs=-Xmx2048m
-
-构建失败 (OOM):
-↓
-增加到:
-org.gradle.jvmargs=-Xmx3072m
-
-构建成功，但 GC 频繁:
-↓
-优化:
-org.gradle.jvmargs=-Xmx4096m -Xms1024m
-
-结果:
-✅ 构建稳定
-✅ 速度提升 30%
-```
 
 ---
 
@@ -292,41 +237,6 @@ CPU 使用率:80-100% (多核满载)
 
 ---
 
-#### 并行构建的限制
-
-**依赖关系影响**:
-```kotlin
-// app/build.gradle.kts
-dependencies {
-    implementation(project(":lib-common"))
-    implementation(project(":lib-network"))  // 依赖 lib-common
-    implementation(project(":lib-database"))
-}
-
-// lib-network/build.gradle.kts
-dependencies {
-    implementation(project(":lib-common"))  // 必须等 lib-common 先编译
-}
-```
-
-**实际执行**:
-```
-第一阶段 (并行):
-├─ lib-common (10s) ──┐
-├─ lib-database (12s) ┤ 同时进行
-
-第二阶段 (等待依赖):
-└─ lib-network (8s)  必须等 lib-common 完成
-
-第三阶段:
-└─ app (20s)
-
-总时间:10s + 8s + 20s = 38s
-而非:10s + 8s + 12s + 20s = 50s
-```
-
----
-
 ### 4. kotlin.code.style - Kotlin 代码风格
 
 #### 作用
@@ -340,51 +250,6 @@ kotlin.code.style=official
 
 # 旧版风格 (不推荐)
 kotlin.code.style=obsolete
-```
-
-**实际效果对比**:
-
-**official 风格**:
-```kotlin
-// 数据类
-data class User(
-    val name: String,
-    val age: Int
-)
-
-// 函数参数对齐
-fun processUser(
-    name: String,
-    age: Int,
-    email: String
-) {
-    // ...
-}
-
-// import 分组
-import android.app.Activity
-import android.os.Bundle
-
-import androidx.compose.material3.Text
-
-import com.example.acstool.R
-```
-
-**obsolete 风格**:
-```kotlin
-// 数据类 (紧凑格式)
-data class User(val name: String, val age: Int)
-
-// 函数参数 (单行)
-fun processUser(name: String, age: Int, email: String) {
-    // ...
-}
-
-// import(无分组)
-import android.app.Activity
-import android.os.Bundle
-import androidx.compose.material3.Text
-import com.example.acstool.R
 ```
 
 ---
