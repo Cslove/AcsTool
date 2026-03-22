@@ -52,49 +52,6 @@ gradle/wrapper/gradle-wrapper.properties:
 
 ---
 
-### 2. 零配置运行
-
-#### 作用
-新成员加入项目时，无需手动安装 Gradle，开箱即用。
-
-#### 实际场景：新成员入职
-
-**❌ 传统方式:**
-```
-👤 新成员小王入职第一天:
-
-步骤 1:搜索"如何安装 Gradle"
-步骤 2:打开 Gradle 官网
-步骤 3:下载 gradle-8.0-bin.zip
-步骤 4:解压到 /opt/gradle
-步骤 5:编辑 ~/.zshrc
-  export GRADLE_HOME=/opt/gradle
-  export PATH=$GRADLE_HOME/bin:$PATH
-步骤 6:source ~/.zshrc
-步骤 7:gradle -v 验证
-步骤 8:git clone 项目
-步骤 9:cd 项目
-步骤 10:gradle build → ❌ 版本不对！项目需要 7.5
-
-总耗时:30 分钟
-```
-
-**✅ Wrapper 方式:**
-```
-👤 新成员小王入职第一天:
-
-步骤 1:git clone 项目
-步骤 2:cd 项目
-步骤 3:./gradlew build
-  ├─ 自动检测 Gradle 版本
-  ├─ 自动下载对应版本
-  └─ 自动执行构建
-
-总耗时:3 分钟(大部分时间在下载)
-```
-
----
-
 ## 🔧 工作原理
 
 ### 执行流程图解
@@ -136,67 +93,6 @@ gradle/wrapper/gradle-wrapper.properties:
     └─ 失败 → exit 1
 ```
 
----
-
-## 📁 文件结构分析
-
-### gradlew (Linux/Mac)
-
-```bash
-#!/bin/sh
-# POSIX 兼容的 shell 脚本
-
-# 关键变量
-APP_HOME=$( cd -P "${APP_HOME:-./}" > /dev/null && printf '%s\n' "$PWD" )
-CLASSPATH=""
-JAVACMD=java  # 或使用 JAVA_HOME 指定的 java
-
-# 默认 JVM 参数
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
-
-# 执行 Gradle
-exec "$JAVACMD" \
-  -Dorg.gradle.appname=$APP_BASE_NAME \
-  -classpath "$CLASSPATH" \
-  -jar "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" \
-  "$@"
-```
-
-**关键点**:
-- 最终调用 `gradle-wrapper.jar`(真正的引导程序)
-- 传递所有命令行参数(`"$@"`)
-- 使用 `-jar` 模式运行 JAR 文件
-
-### gradlew.bat (Windows)
-
-```batch
-@echo off
-REM Windows 批处理脚本
-
-REM 设置变量
-set APP_HOME=%DIRNAME%
-set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
-
-REM 查找 Java
-if defined JAVA_HOME goto findJavaFromJavaHome
-set JAVA_EXE=java.exe
-if exist "%JAVA_EXE%" goto execute
-
-REM 执行 Gradle
-"%JAVA_EXE%" %DEFAULT_JVM_OPTS% ^
-  -Dorg.gradle.appname=%APP_BASE_NAME% ^
-  -classpath "%CLASSPATH%" ^
-  -jar "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" ^
-  %*
-```
-
-**关键点**:
-- Windows 路径处理 (反斜杠)
-- 使用 `%*` 传递所有参数
-- `.bat` 扩展名确保 CMD 识别
-
----
-
 ## 🎯 实际应用场景
 
 ### 场景 1:升级 Gradle 版本
@@ -216,67 +112,6 @@ distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
 # 验证升级
 ./gradlew --version
 ```
-
-**执行流程**:
-```
-1. 修改配置文件
-2. 下次运行 ./gradlew 时:
-   ├─ 检测到新版本 8.5
-   ├─ 自动下载 gradle-8.5-bin.zip
-   ├─ 解压到缓存目录
-   └─ 使用新版本构建
-3. 团队其他成员 pull 代码后:
-   ├─ 自动下载 8.5
-   └─ 无缝切换
-```
-
-**状态同步**:
-```
-Git 提交记录:
-commit abc123
-  gradle/wrapper/gradle-wrapper.properties | 2 +-
-  1 file changed, 1 insertion(+), 1 deletion(-)
-
-团队成员执行:
-git pull
-./gradlew build  # 自动使用新版本
-```
-
----
-
-### 场景 2:离线构建
-
-**背景**: 公司内网无法访问外网
-
-**问题**:
-```
-❌ 首次运行 ./gradlew build
-   下载 gradle-wrapper.jar → 失败
-   下载 gradle-8.0-bin.zip → 失败
-```
-
-**解决方案**:
-
-**方案 A:提前缓存**
-```bash
-# 在有网的机器上执行
-./gradlew build  # 下载所有依赖
-
-# 复制缓存目录
-cp -r ~/.gradle/wrapper /shared/internal-mirror/
-
-# 在内网机器上配置
-export GRADLE_USER_HOME=/shared/internal-mirror/.gradle
-./gradlew build  # 使用本地缓存
-```
-
-**方案 B:配置镜像**
-```properties
-# gradle/wrapper/gradle-wrapper.properties
-distributionUrl=https\://mirrors.cloud.tencent.com/distributions/gradle-8.0-bin.zip
-```
-
----
 
 ### 场景 3:CI/CD集成
 
@@ -338,39 +173,6 @@ GitHub Actions Runner:
 项目 B:Gradle 8.0
 项目 C:Gradle 8.5
 ```
-
-**错误做法**:
-```bash
-# 全局安装一个版本
-export GRADLE_HOME=/opt/gradle-8.0
-
-# 切换到项目 A
-cd project-a
-gradle build  # ❌ 版本不对!
-
-# 手动切换
-export GRADLE_HOME=/opt/gradle-7.0
-cd project-a
-gradle build  # ✅
-
-# 切换到项目 B
-cd project-b
-gradle build  # ❌ 又要改!
-```
-
-**正确做法**:
-```bash
-# 每个项目都有自己的 gradlew
-cd project-a
-./gradlew build  # ✅ 自动使用 Gradle 7.0
-
-cd project-b
-./gradlew build  # ✅ 自动使用 Gradle 8.0
-
-cd project-c
-./gradlew build  # ✅ 自动使用 Gradle 8.5
-```
-
 **底层机制**:
 ```
 每个项目的 gradle/wrapper/gradle-wrapper.properties 独立配置:
